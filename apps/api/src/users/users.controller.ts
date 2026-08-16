@@ -1,12 +1,12 @@
-import { Body, Controller, Get, Post, Param, Patch } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch } from '@nestjs/common';
 import { Delete } from '@nestjs/common';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { CreateUserDto } from './dto/create-user.dto';
+//import { CreateUserDto } from './dto/create-user.dto';
 import { UsersService } from './users.service';
 import { ApiTags } from '@nestjs/swagger';
 import {
   ApiConflictResponse,
-  ApiCreatedResponse,
+  //ApiCreatedResponse,
   ApiNoContentResponse,
   ApiNotFoundResponse,
   ApiOkResponse,
@@ -24,14 +24,14 @@ export class UsersController {
   findAll() {
     return this.usersService.findAll();
   }
-
+  /*
   @Post()
   @ApiOperation({ summary: 'Create a new user' })
   @ApiCreatedResponse({ description: 'User created successfully' })
   @ApiConflictResponse({ description: 'User already exists' })
   create(@Body() createUserDto: CreateUserDto) {
     return this.usersService.create(createUserDto);
-  }
+  } */
 
   @Get(':id')
   @ApiOperation({ summary: 'Get a user by ID' })
