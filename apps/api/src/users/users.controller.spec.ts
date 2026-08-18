@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { AuthGuard } from '../auth/auth.guard';
 import { UsersController } from './users.controller';
 import { UsersService } from './users.service';
 
@@ -8,7 +9,6 @@ describe('UsersController', () => {
   const usersServiceMock = {
     findAll: jest.fn(),
     findOne: jest.fn(),
-    //create: jest.fn(),
     update: jest.fn(),
     remove: jest.fn(),
   };
@@ -24,7 +24,12 @@ describe('UsersController', () => {
           useValue: usersServiceMock,
         },
       ],
-    }).compile();
+    })
+      .overrideGuard(AuthGuard)
+      .useValue({
+        canActivate: jest.fn().mockReturnValue(true),
+      })
+      .compile();
 
     controller = module.get<UsersController>(UsersController);
   });

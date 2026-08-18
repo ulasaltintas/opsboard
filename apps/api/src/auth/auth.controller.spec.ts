@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { AuthController } from './auth.controller';
+import { AuthGuard } from './auth.guard';
 import { AuthService } from './auth.service';
 
 describe('AuthController', () => {
@@ -7,9 +8,13 @@ describe('AuthController', () => {
 
   const authServiceMock = {
     register: jest.fn(),
+    login: jest.fn(),
+    getCurrentUser: jest.fn(),
   };
 
   beforeEach(async () => {
+    jest.clearAllMocks();
+
     const module: TestingModule = await Test.createTestingModule({
       controllers: [AuthController],
       providers: [
@@ -18,7 +23,12 @@ describe('AuthController', () => {
           useValue: authServiceMock,
         },
       ],
-    }).compile();
+    })
+      .overrideGuard(AuthGuard)
+      .useValue({
+        canActivate: jest.fn().mockReturnValue(true),
+      })
+      .compile();
 
     controller = module.get<AuthController>(AuthController);
   });

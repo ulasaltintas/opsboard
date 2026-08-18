@@ -14,6 +14,13 @@ export class UsersService {
       orderBy: {
         createdAt: 'desc',
       },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        createdAt: true,
+        updatedAt: true,
+      },
     });
   }
 
@@ -38,6 +45,13 @@ export class UsersService {
   async findOne(id: string) {
     const user = await this.prisma.user.findUnique({
       where: { id },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        createdAt: true,
+        updatedAt: true,
+      },
     });
     if (!user) {
       throw new NotFoundException(`User with ID ${id} not found`);

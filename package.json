@@ -20,5 +20,8 @@
   "bugs": {
     "url": "https://github.com/ulasaltintas/opsboard/issues"
   },
-  "homepage": "https://github.com/ulasaltintas/opsboard#readme"
+  "homepage": "https://github.com/ulasaltintas/opsboard#readme",
+  "dependencies": {
+    "@nestjs/jwt": "^11.0.2"
+  }
 }
