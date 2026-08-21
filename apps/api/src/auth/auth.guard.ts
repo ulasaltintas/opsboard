@@ -6,10 +6,12 @@ import {
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Request } from 'express';
+import { Role } from 'generated/prisma/client';
 
 interface JwtPayload {
   sub: string;
   email: string;
+  role: Role;
 }
 
 interface AuthenticatedRequest extends Request {

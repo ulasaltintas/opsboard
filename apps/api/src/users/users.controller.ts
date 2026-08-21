@@ -4,6 +4,9 @@ import { UpdateUserDto } from './dto/update-user.dto';
 //import { CreateUserDto } from './dto/create-user.dto';
 import { UsersService } from './users.service';
 import { ApiTags } from '@nestjs/swagger';
+import { Role } from '../../generated/prisma/enums';
+import { Roles } from '../auth/roles.decorator';
+import { RolesGuard } from '../auth/roles.guard';
 import {
   ApiConflictResponse,
   //ApiCreatedResponse,
@@ -19,11 +22,12 @@ import { AuthGuard } from '../auth/auth.guard';
 
 @ApiTags('users')
 @ApiBearerAuth()
-@UseGuards(AuthGuard)
+@UseGuards(AuthGuard, RolesGuard)
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
+  @Roles(Role.ADMIN)
   @Get()
   @ApiOperation({ summary: 'List all users' })
   @ApiOkResponse({ description: 'Users returned successfully' })
@@ -39,6 +43,7 @@ export class UsersController {
     return this.usersService.create(createUserDto);
   } */
 
+  @Roles(Role.ADMIN)
   @Get(':id')
   @ApiOperation({ summary: 'Get a user by ID' })
   @ApiOkResponse({ description: 'User returned successfully' })
@@ -47,6 +52,7 @@ export class UsersController {
     return this.usersService.findOne(id);
   }
 
+  @Roles(Role.ADMIN)
   @Delete(':id')
   @ApiOperation({ summary: 'Delete a user by ID' })
   @ApiNoContentResponse({ description: 'User deleted successfully' })
@@ -55,6 +61,7 @@ export class UsersController {
     return this.usersService.remove(id);
   }
 
+  @Roles(Role.ADMIN)
   @Patch(':id')
   @ApiOperation({ summary: 'Update a user' })
   @ApiOkResponse({ description: 'User updated successfully' })
@@ -64,6 +71,7 @@ export class UsersController {
     return this.usersService.update(id, updateUserDto);
   }
 
+  @Roles(Role.ADMIN)
   @Delete(':id')
   removeId(@Param('id') id: string) {
     return this.usersService.removeId(id);
