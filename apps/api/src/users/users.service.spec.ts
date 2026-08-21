@@ -11,7 +11,6 @@ describe('UsersService', () => {
     user: {
       findMany: jest.fn(),
       findUnique: jest.fn(),
-      create: jest.fn(),
       update: jest.fn(),
       delete: jest.fn(),
     },
@@ -53,6 +52,13 @@ describe('UsersService', () => {
         orderBy: {
           createdAt: 'desc',
         },
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          createdAt: true,
+          updatedAt: true,
+        },
       });
     });
   });
@@ -75,6 +81,13 @@ describe('UsersService', () => {
         where: {
           id: 'user-1',
         },
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          createdAt: true,
+          updatedAt: true,
+        },
       });
     });
 
@@ -84,53 +97,6 @@ describe('UsersService', () => {
       await expect(service.findOne('missing-user')).rejects.toThrow(
         NotFoundException,
       );
-    });
-  });
-
-  describe('create', () => {
-    it('creates and returns a user', async () => {
-      const createdUser = {
-        id: 'user-1',
-        email: 'ulas@example.com',
-        name: 'Ulas',
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-
-      prismaMock.user.create.mockResolvedValue(createdUser);
-
-      await expect(
-        service.create({
-          email: 'ulas@example.com',
-          name: 'Ulas',
-        }),
-      ).resolves.toEqual(createdUser);
-
-      expect(prismaMock.user.create).toHaveBeenCalledWith({
-        data: {
-          email: 'ulas@example.com',
-          name: 'Ulas',
-        },
-      });
-    });
-
-    it('throws ConflictException when the email already exists', async () => {
-      const error = new Prisma.PrismaClientKnownRequestError(
-        'Unique constraint failed',
-        {
-          code: 'P2002',
-          clientVersion: '7.9.1',
-        },
-      );
-
-      prismaMock.user.create.mockRejectedValue(error);
-
-      await expect(
-        service.create({
-          email: 'ulas@example.com',
-          name: 'Ulas',
-        }),
-      ).rejects.toThrow(ConflictException);
     });
   });
 

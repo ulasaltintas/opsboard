@@ -2,7 +2,7 @@ import { ConflictException, Injectable } from '@nestjs/common';
 import { NotFoundException } from '@nestjs/common';
 import { Prisma } from '../../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
-import { CreateUserDto } from './dto/create-user.dto';
+//import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 
 @Injectable()
@@ -14,10 +14,17 @@ export class UsersService {
       orderBy: {
         createdAt: 'desc',
       },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        createdAt: true,
+        updatedAt: true,
+      },
     });
   }
 
-  async create(createUserDto: CreateUserDto) {
+  /* async create(createUserDto: CreateUserDto) {
     try {
       return await this.prisma.user.create({
         data: {
@@ -33,11 +40,18 @@ export class UsersService {
       }
       throw error;
     }
-  }
+  } */
 
   async findOne(id: string) {
     const user = await this.prisma.user.findUnique({
       where: { id },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        createdAt: true,
+        updatedAt: true,
+      },
     });
     if (!user) {
       throw new NotFoundException(`User with ID ${id} not found`);

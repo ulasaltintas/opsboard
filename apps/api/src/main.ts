@@ -10,6 +10,7 @@ async function bootstrap() {
     .setTitle('OpsBoard API')
     .setDescription('The OpsBoard API description')
     .setVersion('0.1.0')
+    .addBearerAuth()
     .build();
 
   const documentFactory = () =>
