@@ -3,6 +3,7 @@ import {
   Injectable,
   NotFoundException,
   ForbiddenException,
+  BadRequestException,
 } from '@nestjs/common';
 import { Prisma } from '../../generated/prisma/client';
 import { OrganizationRole } from '../../generated/prisma/enums';
@@ -11,6 +12,7 @@ import { CreateOrganizationDto } from './dto/create-organization.dto';
 import { UpdateOrganizationDto } from './dto/update-organization.dto';
 import { AddMemberDto } from './dto/add-member.dto';
 import { UpdateMemberRoleDto } from './dto/update-member-role.dto';
+import { TransferOwnershipDto } from './dto/transfer-ownership.dto';
 
 @Injectable()
 export class OrganizationsService {
@@ -433,5 +435,87 @@ export class OrganizationsService {
     return {
       message: 'Member removed successfully',
     };
+  }
+
+  async transferOwnership(
+    requesterUserId: string,
+    organizationId: string,
+    transferOwnershipDto: TransferOwnershipDto,
+  ) {
+    if (requesterUserId === transferOwnershipDto.userId) {
+      throw new BadRequestException(
+        'You are already the owner of this organization',
+      );
+    }
+
+    const requesterMembership = await this.prisma.membership.findUnique({
+      where: {
+        userId_organizationId: {
+          userId: requesterUserId,
+          organizationId,
+        },
+      },
+    });
+
+    if (!requesterMembership) {
+      throw new NotFoundException(
+        `Organization with ID "${organizationId}" was not found`,
+      );
+    }
+
+    if (requesterMembership.role !== OrganizationRole.OWNER) {
+      throw new ForbiddenException(
+        'Only the organization owner can transfer ownership',
+      );
+    }
+
+    const targetMembership = await this.prisma.membership.findUnique({
+      where: {
+        userId_organizationId: {
+          userId: transferOwnershipDto.userId,
+          organizationId,
+        },
+      },
+    });
+
+    if (!targetMembership) {
+      throw new NotFoundException(
+        'The new owner must already be a member of the organization',
+      );
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      // The old owner becomes an administrator.
+      await tx.membership.update({
+        where: {
+          id: requesterMembership.id,
+        },
+        data: {
+          role: OrganizationRole.ADMIN,
+        },
+      });
+
+      // The selected member becomes the new owner.
+      return tx.membership.update({
+        where: {
+          id: targetMembership.id,
+        },
+        data: {
+          role: OrganizationRole.OWNER,
+        },
+        select: {
+          id: true,
+          role: true,
+          createdAt: true,
+          user: {
+            select: {
+              id: true,
+              email: true,
+              name: true,
+            },
+          },
+        },
+      });
+    });
   }
 }

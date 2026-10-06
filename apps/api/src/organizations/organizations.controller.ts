@@ -18,6 +18,7 @@ import {
   ApiTags,
   ApiNotFoundResponse,
   ApiForbiddenResponse,
+  ApiBadRequestResponse,
 } from '@nestjs/swagger';
 import { Request } from 'express';
 import { Role } from '../../generated/prisma/enums';
@@ -27,6 +28,7 @@ import { OrganizationsService } from './organizations.service';
 import { UpdateOrganizationDto } from './dto/update-organization.dto';
 import { AddMemberDto } from './dto/add-member.dto';
 import { UpdateMemberRoleDto } from './dto/update-member-role.dto';
+import { TransferOwnershipDto } from './dto/transfer-ownership.dto';
 
 interface AuthenticatedRequest extends Request {
   user: {
@@ -160,5 +162,31 @@ export class OrganizationsController {
     @Param('userId') userId: string,
   ) {
     return this.organizationsService.removeMember(request.user.sub, id, userId);
+  }
+
+  @Post(':id/transfer-ownership')
+  @ApiOperation({ summary: 'Transfer organization ownership' })
+  @ApiOkResponse({
+    description: 'Organization ownership transferred successfully',
+  })
+  @ApiBadRequestResponse({
+    description: 'The current owner cannot transfer ownership to themselves',
+  })
+  @ApiForbiddenResponse({
+    description: 'Only the organization owner can transfer ownership',
+  })
+  @ApiNotFoundResponse({
+    description: 'Organization or target member was not found',
+  })
+  transferOwnership(
+    @Req() request: AuthenticatedRequest,
+    @Param('id') id: string,
+    @Body() transferOwnershipDto: TransferOwnershipDto,
+  ) {
+    return this.organizationsService.transferOwnership(
+      request.user.sub,
+      id,
+      transferOwnershipDto,
+    );
   }
 }

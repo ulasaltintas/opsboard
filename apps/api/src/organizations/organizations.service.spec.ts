@@ -1,4 +1,8 @@
-import { ForbiddenException, NotFoundException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { OrganizationRole } from '../../generated/prisma/enums';
 import { PrismaService } from '../prisma/prisma.service';
@@ -13,6 +17,7 @@ describe('OrganizationsService', () => {
       update: jest.fn(),
       delete: jest.fn(),
     },
+    $transaction: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -319,6 +324,132 @@ describe('OrganizationsService', () => {
       ).rejects.toThrow(NotFoundException);
 
       expect(prismaMock.membership.delete).not.toHaveBeenCalled();
+    });
+  });
+  describe('transferOwnership', () => {
+    const organizationId = 'organization-1';
+    const ownerUserId = 'owner-1';
+    const targetUserId = 'member-1';
+
+    it('should transfer ownership to another member', async () => {
+      prismaMock.membership.findUnique
+        .mockResolvedValueOnce({
+          id: 'owner-membership',
+          userId: ownerUserId,
+          organizationId,
+          role: OrganizationRole.OWNER,
+        })
+        .mockResolvedValueOnce({
+          id: 'target-membership',
+          userId: targetUserId,
+          organizationId,
+          role: OrganizationRole.MEMBER,
+        });
+
+      const newOwnerMembership = {
+        id: 'target-membership',
+        role: OrganizationRole.OWNER,
+        createdAt: new Date(),
+        user: {
+          id: targetUserId,
+          email: 'member@example.com',
+          name: 'Member',
+        },
+      };
+
+      prismaMock.$transaction.mockImplementation(
+        async (
+          callback: (tx: {
+            membership: {
+              update: jest.Mock;
+            };
+          }) => Promise<unknown>,
+        ) => {
+          const tx = {
+            membership: {
+              update: jest
+                .fn()
+                .mockResolvedValueOnce({
+                  id: 'owner-membership',
+                  role: OrganizationRole.ADMIN,
+                })
+                .mockResolvedValueOnce(newOwnerMembership),
+            },
+          };
+
+          return callback(tx);
+        },
+      );
+
+      const result = await service.transferOwnership(
+        ownerUserId,
+        organizationId,
+        {
+          userId: targetUserId,
+        },
+      );
+
+      expect(result).toEqual(newOwnerMembership);
+      expect(prismaMock.$transaction).toHaveBeenCalledTimes(1);
+    });
+
+    it('should reject a non-owner trying to transfer ownership', async () => {
+      prismaMock.membership.findUnique.mockResolvedValueOnce({
+        id: 'admin-membership',
+        userId: 'admin-1',
+        organizationId,
+        role: OrganizationRole.ADMIN,
+      });
+
+      await expect(
+        service.transferOwnership('admin-1', organizationId, {
+          userId: targetUserId,
+        }),
+      ).rejects.toThrow(ForbiddenException);
+
+      expect(prismaMock.$transaction).not.toHaveBeenCalled();
+    });
+
+    it('should reject transferring ownership to yourself', async () => {
+      await expect(
+        service.transferOwnership(ownerUserId, organizationId, {
+          userId: ownerUserId,
+        }),
+      ).rejects.toThrow(BadRequestException);
+
+      expect(prismaMock.membership.findUnique).not.toHaveBeenCalled();
+      expect(prismaMock.$transaction).not.toHaveBeenCalled();
+    });
+
+    it('should return not found when requester is not in the organization', async () => {
+      prismaMock.membership.findUnique.mockResolvedValueOnce(null);
+
+      await expect(
+        service.transferOwnership('outsider-1', organizationId, {
+          userId: targetUserId,
+        }),
+      ).rejects.toThrow(NotFoundException);
+
+      expect(prismaMock.$transaction).not.toHaveBeenCalled();
+    });
+
+    it('should return not found when new owner is not a member', async () => {
+      prismaMock.membership.findUnique
+        .mockResolvedValueOnce({
+          id: 'owner-membership',
+          userId: ownerUserId,
+          organizationId,
+          role: OrganizationRole.OWNER,
+        })
+        .mockResolvedValueOnce(null);
+
+      await expect(
+        service.transferOwnership(ownerUserId, organizationId, {
+          userId: 'non-member-1',
+        }),
+      ).rejects.toThrow(NotFoundException);
+
+      expect(prismaMock.$transaction).not.toHaveBeenCalled();
     });
   });
 });
