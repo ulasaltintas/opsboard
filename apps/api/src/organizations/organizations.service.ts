@@ -371,4 +371,67 @@ export class OrganizationsService {
       },
     });
   }
+
+  async removeMember(
+    requesterUserId: string,
+    organizationId: string,
+    targetUserId: string,
+  ) {
+    const requesterMembership = await this.prisma.membership.findUnique({
+      where: {
+        userId_organizationId: {
+          userId: requesterUserId,
+          organizationId,
+        },
+      },
+    });
+
+    if (!requesterMembership) {
+      throw new NotFoundException(
+        `Organization with ID "${organizationId}" was not found`,
+      );
+    }
+
+    if (requesterMembership.role === OrganizationRole.MEMBER) {
+      throw new ForbiddenException(
+        'You do not have permission to remove members',
+      );
+    }
+
+    const targetMembership = await this.prisma.membership.findUnique({
+      where: {
+        userId_organizationId: {
+          userId: targetUserId,
+          organizationId,
+        },
+      },
+    });
+
+    if (!targetMembership) {
+      throw new NotFoundException('User is not a member of this organization');
+    }
+
+    if (targetMembership.role === OrganizationRole.OWNER) {
+      throw new ForbiddenException('The organization owner cannot be removed');
+    }
+
+    if (
+      requesterMembership.role === OrganizationRole.ADMIN &&
+      targetMembership.role === OrganizationRole.ADMIN
+    ) {
+      throw new ForbiddenException(
+        'Only the organization owner can remove administrators',
+      );
+    }
+
+    await this.prisma.membership.delete({
+      where: {
+        id: targetMembership.id,
+      },
+    });
+
+    return {
+      message: 'Member removed successfully',
+    };
+  }
 }

@@ -11,6 +11,7 @@ describe('OrganizationsService', () => {
     membership: {
       findUnique: jest.fn(),
       update: jest.fn(),
+      delete: jest.fn(),
     },
   };
 
@@ -163,6 +164,161 @@ describe('OrganizationsService', () => {
       ).rejects.toThrow(NotFoundException);
 
       expect(prismaMock.membership.update).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('removeMember', () => {
+    const organizationId = 'organization-1';
+    const ownerUserId = 'owner-1';
+    const adminUserId = 'admin-1';
+    const memberUserId = 'member-1';
+
+    it('should allow an owner to remove a member', async () => {
+      prismaMock.membership.findUnique
+        .mockResolvedValueOnce({
+          id: 'owner-membership',
+          userId: ownerUserId,
+          organizationId,
+          role: OrganizationRole.OWNER,
+        })
+        .mockResolvedValueOnce({
+          id: 'member-membership',
+          userId: memberUserId,
+          organizationId,
+          role: OrganizationRole.MEMBER,
+        });
+
+      prismaMock.membership.delete.mockResolvedValue({
+        id: 'member-membership',
+      });
+
+      const result = await service.removeMember(
+        ownerUserId,
+        organizationId,
+        memberUserId,
+      );
+
+      expect(result).toEqual({
+        message: 'Member removed successfully',
+      });
+
+      expect(prismaMock.membership.delete).toHaveBeenCalledWith({
+        where: {
+          id: 'member-membership',
+        },
+      });
+    });
+
+    it('should allow an admin to remove a member', async () => {
+      prismaMock.membership.findUnique
+        .mockResolvedValueOnce({
+          id: 'admin-membership',
+          userId: adminUserId,
+          organizationId,
+          role: OrganizationRole.ADMIN,
+        })
+        .mockResolvedValueOnce({
+          id: 'member-membership',
+          userId: memberUserId,
+          organizationId,
+          role: OrganizationRole.MEMBER,
+        });
+
+      prismaMock.membership.delete.mockResolvedValue({
+        id: 'member-membership',
+      });
+
+      await expect(
+        service.removeMember(adminUserId, organizationId, memberUserId),
+      ).resolves.toEqual({
+        message: 'Member removed successfully',
+      });
+    });
+
+    it('should reject a member trying to remove someone', async () => {
+      prismaMock.membership.findUnique.mockResolvedValueOnce({
+        id: 'member-membership',
+        userId: memberUserId,
+        organizationId,
+        role: OrganizationRole.MEMBER,
+      });
+
+      await expect(
+        service.removeMember(memberUserId, organizationId, adminUserId),
+      ).rejects.toThrow(ForbiddenException);
+
+      expect(prismaMock.membership.delete).not.toHaveBeenCalled();
+    });
+
+    it('should reject removing the organization owner', async () => {
+      prismaMock.membership.findUnique
+        .mockResolvedValueOnce({
+          id: 'owner-membership',
+          userId: ownerUserId,
+          organizationId,
+          role: OrganizationRole.OWNER,
+        })
+        .mockResolvedValueOnce({
+          id: 'owner-membership',
+          userId: ownerUserId,
+          organizationId,
+          role: OrganizationRole.OWNER,
+        });
+
+      await expect(
+        service.removeMember(ownerUserId, organizationId, ownerUserId),
+      ).rejects.toThrow(ForbiddenException);
+
+      expect(prismaMock.membership.delete).not.toHaveBeenCalled();
+    });
+
+    it('should reject an admin trying to remove another admin', async () => {
+      prismaMock.membership.findUnique
+        .mockResolvedValueOnce({
+          id: 'admin-membership',
+          userId: adminUserId,
+          organizationId,
+          role: OrganizationRole.ADMIN,
+        })
+        .mockResolvedValueOnce({
+          id: 'other-admin-membership',
+          userId: 'admin-2',
+          organizationId,
+          role: OrganizationRole.ADMIN,
+        });
+
+      await expect(
+        service.removeMember(adminUserId, organizationId, 'admin-2'),
+      ).rejects.toThrow(ForbiddenException);
+
+      expect(prismaMock.membership.delete).not.toHaveBeenCalled();
+    });
+
+    it('should return not found when requester is not in the organization', async () => {
+      prismaMock.membership.findUnique.mockResolvedValueOnce(null);
+
+      await expect(
+        service.removeMember('outsider-1', organizationId, memberUserId),
+      ).rejects.toThrow(NotFoundException);
+
+      expect(prismaMock.membership.delete).not.toHaveBeenCalled();
+    });
+
+    it('should return not found when target is not a member', async () => {
+      prismaMock.membership.findUnique
+        .mockResolvedValueOnce({
+          id: 'owner-membership',
+          userId: ownerUserId,
+          organizationId,
+          role: OrganizationRole.OWNER,
+        })
+        .mockResolvedValueOnce(null);
+
+      await expect(
+        service.removeMember(ownerUserId, organizationId, 'not-a-member'),
+      ).rejects.toThrow(NotFoundException);
+
+      expect(prismaMock.membership.delete).not.toHaveBeenCalled();
     });
   });
 });

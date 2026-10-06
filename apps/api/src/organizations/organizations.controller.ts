@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Post,
   Req,
@@ -143,5 +144,21 @@ export class OrganizationsController {
       userId,
       updateMemberRoleDto,
     );
+  }
+  @Delete(':id/members/:userId')
+  @ApiOperation({ summary: 'Remove a member from an organization' })
+  @ApiOkResponse({ description: 'Member removed successfully' })
+  @ApiForbiddenResponse({
+    description: 'Insufficient organization permissions',
+  })
+  @ApiNotFoundResponse({
+    description: 'Organization or member was not found',
+  })
+  removeMember(
+    @Req() request: AuthenticatedRequest,
+    @Param('id') id: string,
+    @Param('userId') userId: string,
+  ) {
+    return this.organizationsService.removeMember(request.user.sub, id, userId);
   }
 }
