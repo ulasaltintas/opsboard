@@ -4,8 +4,8 @@
 // Get a free hosted Postgres database in seconds: `npx create-db`
 
 generator client {
-  provider = "prisma-client"
-  output   = "../generated/prisma"
+  provider     = "prisma-client"
+  output       = "../generated/prisma"
   moduleFormat = "cjs"
 }
 
@@ -19,14 +19,14 @@ enum Role {
 }
 
 model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  name      String?
-  role      Role     @default(MEMBER)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id           String       @id @default(uuid())
+  email        String       @unique
+  name         String?
+  role         Role         @default(MEMBER)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
   passwordHash String
-  memberships Membership[]
+  memberships  Membership[]
 }
 
 enum OrganizationRole {
@@ -36,26 +36,40 @@ enum OrganizationRole {
 }
 
 model Organization {
-  id          String       @id @default(uuid())
-  name        String
-  slug        String       @unique
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  id        String   @id @default(uuid())
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   memberships Membership[]
+  projects    Project[]
 }
 
 model Membership {
-  id             String           @id @default(uuid())
-  role           OrganizationRole @default(MEMBER)
+  id   String           @id @default(uuid())
+  role OrganizationRole @default(MEMBER)
 
   userId         String
   organizationId String
 
-  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
-  createdAt      DateTime         @default(now())
+  createdAt DateTime @default(now())
 
   @@unique([userId, organizationId])
+}
+
+model Project {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
 }
