@@ -15,6 +15,7 @@ describe('ProjectsService', () => {
       create: jest.fn(),
       findMany: jest.fn(),
       findFirst: jest.fn(),
+      update: jest.fn(),
     },
   };
 
@@ -299,6 +300,176 @@ describe('ProjectsService', () => {
             userId,
             organizationId,
           },
+        },
+      });
+    });
+  });
+
+  describe('update', () => {
+    const projectId = 'project-123';
+
+    const existingProject = {
+      id: projectId,
+      name: 'Website Redesign',
+      description: 'Original description',
+      organizationId,
+    };
+
+    it.each([OrganizationRole.OWNER, OrganizationRole.ADMIN])(
+      'should allow %s to update a project',
+      async (role) => {
+        prismaMock.membership.findUnique.mockResolvedValue({
+          role,
+        });
+
+        prismaMock.project.findFirst.mockResolvedValue(existingProject);
+
+        const dto = {
+          name: 'Website Redesign v2',
+        };
+
+        const updatedProject = {
+          ...existingProject,
+          name: dto.name,
+        };
+
+        prismaMock.project.update.mockResolvedValue(updatedProject);
+
+        const result = await service.update(
+          userId,
+          organizationId,
+          projectId,
+          dto,
+        );
+
+        expect(result).toEqual(updatedProject);
+
+        expect(prismaMock.project.update).toHaveBeenCalledWith({
+          where: {
+            id: projectId,
+          },
+          data: {
+            name: 'Website Redesign v2',
+          },
+        });
+      },
+    );
+
+    it('should reject a MEMBER with 403', async () => {
+      prismaMock.membership.findUnique.mockResolvedValue({
+        role: OrganizationRole.MEMBER,
+      });
+
+      prismaMock.project.findFirst.mockResolvedValue(existingProject);
+
+      await expect(
+        service.update(userId, organizationId, projectId, {
+          name: 'Unauthorized update',
+        }),
+      ).rejects.toThrow(ForbiddenException);
+
+      expect(prismaMock.project.update).not.toHaveBeenCalled();
+    });
+
+    it('should reject outsiders with 404', async () => {
+      prismaMock.membership.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.update(userId, organizationId, projectId, {
+          name: 'Unauthorized update',
+        }),
+      ).rejects.toThrow(NotFoundException);
+
+      expect(prismaMock.project.findFirst).not.toHaveBeenCalled();
+      expect(prismaMock.project.update).not.toHaveBeenCalled();
+    });
+
+    it('should return 404 when the project does not exist', async () => {
+      prismaMock.membership.findUnique.mockResolvedValue({
+        role: OrganizationRole.OWNER,
+      });
+
+      prismaMock.project.findFirst.mockResolvedValue(null);
+
+      await expect(
+        service.update(userId, organizationId, projectId, {
+          name: 'New name',
+        }),
+      ).rejects.toThrow(NotFoundException);
+
+      expect(prismaMock.project.update).not.toHaveBeenCalled();
+    });
+
+    it('should prevent updates across organizations', async () => {
+      prismaMock.membership.findUnique.mockResolvedValue({
+        role: OrganizationRole.ADMIN,
+      });
+
+      // The project is not found within the requested organization.
+      prismaMock.project.findFirst.mockResolvedValue(null);
+
+      await expect(
+        service.update(userId, organizationId, projectId, {
+          name: 'New name',
+        }),
+      ).rejects.toThrow(NotFoundException);
+
+      expect(prismaMock.project.findFirst).toHaveBeenCalledWith({
+        where: {
+          id: projectId,
+          organizationId,
+        },
+      });
+
+      expect(prismaMock.project.update).not.toHaveBeenCalled();
+    });
+
+    it('should leave the description unchanged when omitted', async () => {
+      prismaMock.membership.findUnique.mockResolvedValue({
+        role: OrganizationRole.OWNER,
+      });
+
+      prismaMock.project.findFirst.mockResolvedValue(existingProject);
+      prismaMock.project.update.mockResolvedValue(existingProject);
+
+      await service.update(userId, organizationId, projectId, {
+        name: 'Updated project name',
+      });
+
+      expect(prismaMock.project.update).toHaveBeenCalledWith({
+        where: {
+          id: projectId,
+        },
+        data: {
+          name: 'Updated project name',
+        },
+      });
+    });
+
+    it('should allow clearing the description with null', async () => {
+      prismaMock.membership.findUnique.mockResolvedValue({
+        role: OrganizationRole.OWNER,
+      });
+
+      prismaMock.project.findFirst.mockResolvedValue(existingProject);
+
+      prismaMock.project.update.mockResolvedValue({
+        ...existingProject,
+        description: null,
+      });
+
+      const result = await service.update(userId, organizationId, projectId, {
+        description: null,
+      });
+
+      expect(result.description).toBeNull();
+
+      expect(prismaMock.project.update).toHaveBeenCalledWith({
+        where: {
+          id: projectId,
+        },
+        data: {
+          description: null,
         },
       });
     });

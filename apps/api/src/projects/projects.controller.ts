@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   Param,
+  Patch,
   Post,
   Req,
   UseGuards,
@@ -22,6 +23,7 @@ import { Role } from '../../generated/prisma/enums';
 import { AuthGuard } from '../auth/auth.guard';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { ProjectsService } from './projects.service';
+import { UpdateProjectDto } from './dto/update-project.dto';
 
 interface AuthenticatedRequest extends Request {
   user: {
@@ -99,6 +101,33 @@ export class ProjectsController {
       request.user.sub,
       organizationId,
       projectId,
+    );
+  }
+
+  @Patch(':projectId')
+  @ApiOperation({
+    summary: 'Update a project',
+  })
+  @ApiOkResponse({
+    description: 'Project updated successfully',
+  })
+  @ApiForbiddenResponse({
+    description: 'Only organization owners and admins can update projects',
+  })
+  @ApiNotFoundResponse({
+    description: 'Organization or project not found',
+  })
+  update(
+    @Req() request: AuthenticatedRequest,
+    @Param('organizationId') organizationId: string,
+    @Param('projectId') projectId: string,
+    @Body() updateProjectDto: UpdateProjectDto,
+  ) {
+    return this.projectsService.update(
+      request.user.sub,
+      organizationId,
+      projectId,
+      updateProjectDto,
     );
   }
 }

@@ -10,6 +10,7 @@ describe('ProjectsController', () => {
     create: jest.fn(),
     findAll: jest.fn(),
     findOne: jest.fn(),
+    update: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -143,5 +144,46 @@ describe('ProjectsController', () => {
     );
 
     expect(result).toEqual(project);
+  });
+
+  it('should pass the correct arguments to update', async () => {
+    const request = {
+      user: {
+        sub: 'user-123',
+        email: 'owner@example.com',
+        role: 'MEMBER',
+      },
+    };
+
+    const organizationId = 'org-123';
+    const projectId = 'project-123';
+
+    const dto = {
+      name: 'Website Redesign v2',
+    };
+
+    const updatedProject = {
+      id: projectId,
+      organizationId,
+      name: dto.name,
+    };
+
+    projectsServiceMock.update.mockResolvedValue(updatedProject);
+
+    const result = await controller.update(
+      request as Parameters<ProjectsController['update']>[0],
+      organizationId,
+      projectId,
+      dto,
+    );
+
+    expect(projectsServiceMock.update).toHaveBeenCalledWith(
+      'user-123',
+      organizationId,
+      projectId,
+      dto,
+    );
+
+    expect(result).toEqual(updatedProject);
   });
 });
