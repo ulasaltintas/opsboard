@@ -16,6 +16,7 @@ describe('ProjectsService', () => {
       findMany: jest.fn(),
       findFirst: jest.fn(),
       update: jest.fn(),
+      delete: jest.fn(),
     },
   };
 
@@ -470,6 +471,120 @@ describe('ProjectsService', () => {
         },
         data: {
           description: null,
+        },
+      });
+    });
+  });
+
+  describe('remove', () => {
+    const projectId = 'project-123';
+
+    const existingProject = {
+      id: projectId,
+      name: 'Temporary Test Project',
+      description: 'Safe to delete',
+      organizationId,
+    };
+
+    it.each([OrganizationRole.OWNER, OrganizationRole.ADMIN])(
+      'should allow %s to delete a project',
+      async (role) => {
+        prismaMock.membership.findUnique.mockResolvedValue({
+          role,
+        });
+
+        prismaMock.project.findFirst.mockResolvedValue(existingProject);
+        prismaMock.project.delete.mockResolvedValue(existingProject);
+
+        const result = await service.remove(userId, organizationId, projectId);
+
+        expect(result).toEqual(existingProject);
+
+        expect(prismaMock.project.delete).toHaveBeenCalledWith({
+          where: {
+            id: projectId,
+            organizationId,
+          },
+        });
+      },
+    );
+
+    it('should reject a MEMBER with 403', async () => {
+      prismaMock.membership.findUnique.mockResolvedValue({
+        role: OrganizationRole.MEMBER,
+      });
+
+      prismaMock.project.findFirst.mockResolvedValue(existingProject);
+
+      await expect(
+        service.remove(userId, organizationId, projectId),
+      ).rejects.toThrow(ForbiddenException);
+
+      expect(prismaMock.project.delete).not.toHaveBeenCalled();
+    });
+
+    it('should reject an outsider with 404', async () => {
+      prismaMock.membership.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.remove(userId, organizationId, projectId),
+      ).rejects.toThrow(NotFoundException);
+
+      expect(prismaMock.project.findFirst).not.toHaveBeenCalled();
+      expect(prismaMock.project.delete).not.toHaveBeenCalled();
+    });
+
+    it('should return 404 when the project does not exist', async () => {
+      prismaMock.membership.findUnique.mockResolvedValue({
+        role: OrganizationRole.OWNER,
+      });
+
+      prismaMock.project.findFirst.mockResolvedValue(null);
+
+      await expect(
+        service.remove(userId, organizationId, projectId),
+      ).rejects.toThrow(NotFoundException);
+
+      expect(prismaMock.project.delete).not.toHaveBeenCalled();
+    });
+
+    it('should prevent deletion across organizations', async () => {
+      prismaMock.membership.findUnique.mockResolvedValue({
+        role: OrganizationRole.ADMIN,
+      });
+
+      prismaMock.project.findFirst.mockResolvedValue(null);
+
+      await expect(
+        service.remove(userId, organizationId, projectId),
+      ).rejects.toThrow(NotFoundException);
+
+      expect(prismaMock.project.findFirst).toHaveBeenCalledWith({
+        where: {
+          id: projectId,
+          organizationId,
+        },
+      });
+
+      expect(prismaMock.project.delete).not.toHaveBeenCalled();
+    });
+
+    it('should check membership for the correct user and organization', async () => {
+      prismaMock.membership.findUnique.mockResolvedValue({
+        role: OrganizationRole.OWNER,
+      });
+
+      prismaMock.project.findFirst.mockResolvedValue(existingProject);
+      prismaMock.project.delete.mockResolvedValue(existingProject);
+
+      await service.remove(userId, organizationId, projectId);
+
+      expect(prismaMock.membership.findUnique).toHaveBeenCalledWith({
+        where: {
+          userId_organizationId: {
+            userId,
+            organizationId,
+          },
         },
       });
     });

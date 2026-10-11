@@ -11,6 +11,7 @@ describe('ProjectsController', () => {
     findAll: jest.fn(),
     findOne: jest.fn(),
     update: jest.fn(),
+    remove: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -185,5 +186,40 @@ describe('ProjectsController', () => {
     );
 
     expect(result).toEqual(updatedProject);
+  });
+
+  it('should pass the correct arguments to remove', async () => {
+    const request = {
+      user: {
+        sub: 'user-123',
+        email: 'owner@example.com',
+        role: 'MEMBER',
+      },
+    };
+
+    const organizationId = 'org-123';
+    const projectId = 'project-123';
+
+    const deletedProject = {
+      id: projectId,
+      organizationId,
+      name: 'Temporary Test Project',
+    };
+
+    projectsServiceMock.remove.mockResolvedValue(deletedProject);
+
+    const result = await controller.remove(
+      request as Parameters<ProjectsController['remove']>[0],
+      organizationId,
+      projectId,
+    );
+
+    expect(projectsServiceMock.remove).toHaveBeenCalledWith(
+      'user-123',
+      organizationId,
+      projectId,
+    );
+
+    expect(result).toEqual(deletedProject);
   });
 });

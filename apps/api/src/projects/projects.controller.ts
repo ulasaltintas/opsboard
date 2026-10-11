@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
@@ -128,6 +129,30 @@ export class ProjectsController {
       organizationId,
       projectId,
       updateProjectDto,
+    );
+  }
+  @Delete(':projectId')
+  @ApiOperation({
+    summary: 'Delete a project',
+  })
+  @ApiOkResponse({
+    description: 'Project deleted successfully',
+  })
+  @ApiForbiddenResponse({
+    description: 'Only organization owners and admins can delete projects',
+  })
+  @ApiNotFoundResponse({
+    description: 'Organization or project not found',
+  })
+  remove(
+    @Req() request: AuthenticatedRequest,
+    @Param('organizationId') organizationId: string,
+    @Param('projectId') projectId: string,
+  ) {
+    return this.projectsService.remove(
+      request.user.sub,
+      organizationId,
+      projectId,
     );
   }
 }

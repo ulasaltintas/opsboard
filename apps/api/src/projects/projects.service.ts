@@ -171,4 +171,55 @@ export class ProjectsService {
       },
     });
   }
+
+  async remove(userId: string, organizationId: string, projectId: string) {
+    //check organization membership
+    const membership = await this.prisma.membership.findUnique({
+      where: {
+        userId_organizationId: {
+          userId,
+          organizationId,
+        },
+      },
+    });
+
+    //hide the organization from outsiders
+    if (!membership) {
+      throw new NotFoundException(
+        `Organization with ID "${organizationId}" was not found`,
+      );
+    }
+
+    // check whether the project belongs to this organization
+    const project = await this.prisma.project.findFirst({
+      where: {
+        id: projectId,
+        organizationId,
+      },
+    });
+
+    if (!project) {
+      throw new NotFoundException(
+        `Project with ID "${projectId}" was not found`,
+      );
+    }
+
+    //only owner and admin can delete projects
+    if (
+      membership.role !== OrganizationRole.OWNER &&
+      membership.role !== OrganizationRole.ADMIN
+    ) {
+      throw new ForbiddenException(
+        'You do not have permission to delete projects',
+      );
+    }
+
+    //delete the project
+    return this.prisma.project.delete({
+      where: {
+        id: projectId,
+        organizationId,
+      },
+    });
+  }
 }
