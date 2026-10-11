@@ -79,4 +79,37 @@ export class ProjectsService {
       },
     });
   }
+
+  async findOne(userId: string, organizationId: string, projectId: string) {
+    const membership = await this.prisma.membership.findUnique({
+      where: {
+        userId_organizationId: {
+          userId,
+          organizationId,
+        },
+      },
+    });
+
+    if (!membership) {
+      throw new NotFoundException(
+        `Organization with ID: "${organizationId}" not found`,
+      );
+    }
+
+    //find the project, but only inside this organization
+    const project = await this.prisma.project.findFirst({
+      where: {
+        id: projectId,
+        organizationId,
+      },
+    });
+
+    if (!project) {
+      throw new NotFoundException(
+        `Project with ID: "${projectId}" not found in organization with ID: "${organizationId}"`,
+      );
+    }
+
+    return project;
+  }
 }

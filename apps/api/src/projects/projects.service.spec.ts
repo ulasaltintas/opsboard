@@ -14,6 +14,7 @@ describe('ProjectsService', () => {
     project: {
       create: jest.fn(),
       findMany: jest.fn(),
+      findFirst: jest.fn(),
     },
   };
 
@@ -196,6 +197,101 @@ describe('ProjectsService', () => {
       prismaMock.project.findMany.mockResolvedValue(projects);
 
       await service.findAll(userId, organizationId);
+
+      expect(prismaMock.membership.findUnique).toHaveBeenCalledWith({
+        where: {
+          userId_organizationId: {
+            userId,
+            organizationId,
+          },
+        },
+      });
+    });
+  });
+
+  describe('findOne', () => {
+    const projectId = 'project-123';
+
+    const project = {
+      id: projectId,
+      name: 'Website Redesign',
+      description: 'Redesign the company website',
+      organizationId,
+    };
+
+    it.each([
+      OrganizationRole.OWNER,
+      OrganizationRole.ADMIN,
+      OrganizationRole.MEMBER,
+    ])('should allow %s to view a project', async (role) => {
+      prismaMock.membership.findUnique.mockResolvedValue({
+        role,
+      });
+
+      prismaMock.project.findFirst.mockResolvedValue(project);
+
+      const result = await service.findOne(userId, organizationId, projectId);
+
+      expect(result).toEqual(project);
+
+      expect(prismaMock.project.findFirst).toHaveBeenCalledWith({
+        where: {
+          id: projectId,
+          organizationId,
+        },
+      });
+    });
+
+    it('should reject outsiders with 404', async () => {
+      prismaMock.membership.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.findOne(userId, organizationId, projectId),
+      ).rejects.toThrow(NotFoundException);
+
+      expect(prismaMock.project.findFirst).not.toHaveBeenCalled();
+    });
+
+    it('should return 404 when the project does not exist', async () => {
+      prismaMock.membership.findUnique.mockResolvedValue({
+        role: OrganizationRole.MEMBER,
+      });
+
+      prismaMock.project.findFirst.mockResolvedValue(null);
+
+      await expect(
+        service.findOne(userId, organizationId, projectId),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should return 404 when the project belongs to another organization', async () => {
+      prismaMock.membership.findUnique.mockResolvedValue({
+        role: OrganizationRole.OWNER,
+      });
+
+      // The scoped query doesn't find a project in this organization.
+      prismaMock.project.findFirst.mockResolvedValue(null);
+
+      await expect(
+        service.findOne(userId, organizationId, projectId),
+      ).rejects.toThrow(NotFoundException);
+
+      expect(prismaMock.project.findFirst).toHaveBeenCalledWith({
+        where: {
+          id: projectId,
+          organizationId,
+        },
+      });
+    });
+
+    it('should check membership for the correct user and organization', async () => {
+      prismaMock.membership.findUnique.mockResolvedValue({
+        role: OrganizationRole.OWNER,
+      });
+
+      prismaMock.project.findFirst.mockResolvedValue(project);
+
+      await service.findOne(userId, organizationId, projectId);
 
       expect(prismaMock.membership.findUnique).toHaveBeenCalledWith({
         where: {

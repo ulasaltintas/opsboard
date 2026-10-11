@@ -79,4 +79,26 @@ export class ProjectsController {
   ) {
     return this.projectsService.findAll(request.user.sub, organizationId);
   }
+
+  @Get(':projectId')
+  @ApiOperation({
+    summary: 'Get a single project by ID',
+  })
+  @ApiOkResponse({
+    description: 'Project retrieved successfully',
+  })
+  @ApiNotFoundResponse({
+    description: 'Organization or project not found',
+  })
+  findOne(
+    @Req() request: AuthenticatedRequest,
+    @Param('organizationId') organizationId: string,
+    @Param('projectId') projectId: string,
+  ) {
+    return this.projectsService.findOne(
+      request.user.sub,
+      organizationId,
+      projectId,
+    );
+  }
 }

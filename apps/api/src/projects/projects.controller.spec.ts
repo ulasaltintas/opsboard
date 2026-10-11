@@ -9,6 +9,7 @@ describe('ProjectsController', () => {
   const projectsServiceMock = {
     create: jest.fn(),
     findAll: jest.fn(),
+    findOne: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -107,5 +108,40 @@ describe('ProjectsController', () => {
     );
 
     expect(result).toEqual(projects);
+  });
+
+  it('should pass the user, organization, and project IDs to findOne', async () => {
+    const request = {
+      user: {
+        sub: 'user-123',
+        email: 'member@example.com',
+        role: 'MEMBER',
+      },
+    };
+
+    const organizationId = 'org-123';
+    const projectId = 'project-123';
+
+    const project = {
+      id: projectId,
+      name: 'Website Redesign',
+      organizationId,
+    };
+
+    projectsServiceMock.findOne.mockResolvedValue(project);
+
+    const result = await controller.findOne(
+      request as Parameters<ProjectsController['findOne']>[0],
+      organizationId,
+      projectId,
+    );
+
+    expect(projectsServiceMock.findOne).toHaveBeenCalledWith(
+      'user-123',
+      organizationId,
+      projectId,
+    );
+
+    expect(result).toEqual(project);
   });
 });
