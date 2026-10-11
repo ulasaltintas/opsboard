@@ -53,4 +53,30 @@ export class ProjectsService {
       },
     });
   }
+
+  async findAll(userId: string, organizationId: string) {
+    const membership = await this.prisma.membership.findUnique({
+      where: {
+        userId_organizationId: {
+          userId,
+          organizationId,
+        },
+      },
+    });
+
+    if (!membership) {
+      throw new NotFoundException(
+        `Organization with ID: "${organizationId}" not found`,
+      );
+    }
+
+    return this.prisma.project.findMany({
+      where: {
+        organizationId,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+  }
 }

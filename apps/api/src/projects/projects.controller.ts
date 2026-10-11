@@ -1,4 +1,12 @@
-import { Body, Controller, Param, Post, Req, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Post,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiCreatedResponse,
@@ -6,6 +14,7 @@ import {
   ApiNotFoundResponse,
   ApiOperation,
   ApiTags,
+  ApiOkResponse,
 } from '@nestjs/swagger';
 import type { Request } from 'express';
 
@@ -51,5 +60,23 @@ export class ProjectsController {
       organizationId,
       createProjectDto,
     );
+  }
+
+  @Get()
+  @ApiOperation({ summary: 'List all projects for an organization' })
+  @ApiOkResponse({
+    description: 'The projects have been successfully retrieved.',
+  })
+  @ApiForbiddenResponse({
+    description: 'You do not have permission to view projects.',
+  })
+  @ApiNotFoundResponse({
+    description: 'Organization not found or user is not a member',
+  })
+  findAll(
+    @Req() request: AuthenticatedRequest,
+    @Param('organizationId') organizationId: string,
+  ) {
+    return this.projectsService.findAll(request.user.sub, organizationId);
   }
 }

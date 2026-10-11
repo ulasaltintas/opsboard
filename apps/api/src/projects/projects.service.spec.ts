@@ -13,6 +13,7 @@ describe('ProjectsService', () => {
     },
     project: {
       create: jest.fn(),
+      findMany: jest.fn(),
     },
   };
 
@@ -124,6 +125,86 @@ describe('ProjectsService', () => {
           organizationId,
         },
       },
+    });
+  });
+  describe('findAll', () => {
+    const projects = [
+      {
+        id: 'project-2',
+        name: 'Mobile App',
+        organizationId,
+      },
+      {
+        id: 'project-1',
+        name: 'Website Redesign',
+        organizationId,
+      },
+    ];
+
+    it.each([
+      OrganizationRole.OWNER,
+      OrganizationRole.ADMIN,
+      OrganizationRole.MEMBER,
+    ])('should allow %s to list projects', async (role) => {
+      prismaMock.membership.findUnique.mockResolvedValue({
+        role,
+      });
+
+      prismaMock.project.findMany.mockResolvedValue(projects);
+
+      const result = await service.findAll(userId, organizationId);
+
+      expect(result).toEqual(projects);
+
+      expect(prismaMock.project.findMany).toHaveBeenCalledWith({
+        where: {
+          organizationId,
+        },
+        orderBy: {
+          createdAt: 'desc',
+        },
+      });
+    });
+
+    it('should reject an outsider with 404', async () => {
+      prismaMock.membership.findUnique.mockResolvedValue(null);
+
+      await expect(service.findAll(userId, organizationId)).rejects.toThrow(
+        NotFoundException,
+      );
+
+      expect(prismaMock.project.findMany).not.toHaveBeenCalled();
+    });
+
+    it('should return an empty array when there are no projects', async () => {
+      prismaMock.membership.findUnique.mockResolvedValue({
+        role: OrganizationRole.MEMBER,
+      });
+
+      prismaMock.project.findMany.mockResolvedValue([]);
+
+      const result = await service.findAll(userId, organizationId);
+
+      expect(result).toEqual([]);
+    });
+
+    it('should check membership for the correct organization', async () => {
+      prismaMock.membership.findUnique.mockResolvedValue({
+        role: OrganizationRole.OWNER,
+      });
+
+      prismaMock.project.findMany.mockResolvedValue(projects);
+
+      await service.findAll(userId, organizationId);
+
+      expect(prismaMock.membership.findUnique).toHaveBeenCalledWith({
+        where: {
+          userId_organizationId: {
+            userId,
+            organizationId,
+          },
+        },
+      });
     });
   });
 });
